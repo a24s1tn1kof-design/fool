@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Карточные игры</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --felt-dark: #0a3d1f;
+    --felt-light: #14602f;
+    --gold: #d4af37;
+    --card-w: 80px;
+    --card-h: 115px;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  body {
+    background: radial-gradient(ellipse at center, var(--felt-light) 0%, var(--felt-dark) 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; fill: currentColor; }
+
+  /* ====== Меню ====== */
+  .menu {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, #1a5c2e 0%, #062012 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  .menu.hidden { opacity: 0; pointer-events: none; transform: scale(1.05); }
+
+  .menu h1 {
+    font-size: 32px;
+    color: var(--gold);
+    text-shadow: 0 2px 12px rgba(212,175,55,0.5);
+    margin-bottom: 6px;
+    letter-spacing: 2px;
+  }
+  .menu .sub {
+    font-size: 13px;
+    opacity: 0.6;
+    margin-bottom: 32px;
+    letter-spacing: 1px;
+  }
+
+  .menu-games {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 28px;
+  }
+
+  .game-card {
+    width: 150px;
+    padding: 20px 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+    border: 2px solid rgba(212,175,55,0.4);
+    border-radius: 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  }
+  .game-card:hover, .game-card.active {
+    transform: translateY(-4px);
+    border-color: var(--gold);
+    box-shadow: 0 8px 24px rgba(212,175,55,0.35);
+  }
+  .game-card .gc-icon {
+    font-size: 42px;
+    color: var(--gold);
+    margin-bottom: 10px;
+    display: block;
+  }
+  .game-card .gc-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .game-card .gc-desc {
+    font-size: 11px;
+    opacity: 0.65;
+    line-height: 1.4;
+  }
+
+  .diff-label {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .difficulties {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .diff-btn {
+    padding: 8px 18px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .diff-btn.active {
+    background: linear-gradient(180deg, #f4b400, #e69500);
+    border-color: #ffd700;
+    color: #222;
+    box-shadow: 0 4px 12px rgba(244,180,0,0.4);
+  }
+
+  .start-btn {
+    padding: 14px 52px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #16a34a, #15803d);
+    color: white;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #0f5c2c, 0 6px 20px rgba(0,0,0,0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.1s;
+  }
+  .start-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #0f5c2c; }
+
+  /* ====== Игровой экран ====== */
+  .game-screen {
+    position: fixed;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+  }
+  .game-screen.active { display: flex; }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(4px);
+    font-size: 13px;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .topbar .btn-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: none; color: white;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .topbar .btn-icon:active { background: rgba(255,255,255,0.25); }
+  .topbar .title { display: flex; align-items: center; gap: 6px; }
+
+  .table {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 8px 6px;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+  }
+  .bot-row { min-height: 90px; align-items: flex-start; padding-top: 4px; }
+  .player-row { min-height: 130px; align-items: flex-end; padding-bottom: 4px; }
+
+  /* ====== Карты ====== */
+  .card {
+    width: var(--card-w);
+    height: var(--card-h);
+    border-radius: 6px;
+    position: relative;
+    flex-shrink: 0;
+    perspective: 800px;
+    transition: transform 0.15s;
+  }
+  .card .face, .card .back {
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 4px;
+    font-weight: bold;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  .card .face {
+    background: #fdfdfd;
+    color: #111;
+    transform: rotateY(0deg);
+  }
+  .card .face.red { color: #d32f2f; }
+  .card .back {
+    background: repeating-linear-gradient(45deg, #1e3a8a 0 6px, #1e40af 6px 12px);
+    border: 2px solid #93c5fd;
+    transform: rotateY(180deg);
+  }
+  .card.flipped .face { transform: rotateY(180deg); }
+  .card.flipped .back { transform: rotateY(0deg); }
+
+  .card .face .tl {
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .card .face .tl .r { font-size: 16px; }
+  .card .face .tl .s { font-size: 14px; }
+  .card .face .center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    opacity: 0.9;
+  }
+  .card .face .br {
+    position: absolute;
+    bottom: 4px; right: 4px;
+    transform: rotate(180deg);
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .bot-row .card { --card-w: 56px; --card-h: 80px; }
+  .bot-row .card .face .center { font-size: 22px; }
+  .bot-row .card .face .tl .r,
+  .bot-row .card .face .tl .s { font-size: 11px; }
+  .bot-row .card .face .br { display: none; }
+  </style>
+  <style>
+  /* ====== Колода и козырь ====== */
+  .deck-zone {
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 5;
+  }
+  .deck-stack { position: relative; width: 60px; height: 86px; }
+  .deck-stack .card { position: absolute; --card-w: 60px; --card-h: 86px; }
+  .deck-stack .card:nth-child(1) { left: 3px; top: 3px; }
+  .deck-stack .card:nth-child(2) { left: 2px; top: 2px; }
+  .deck-stack .card:nth-child(3) { left: 1px; top: 1px; }
+  .trump-card {
+    width: 60px; height: 86px;
+    position: relative;
+    transform: rotate(90deg);
+    transform-origin: center;
+  }
+  .trump-card .card { --card-w: 60px; --card-h: 86px; }
+  .deck-count {
+    font-size: 12px;
+    background: rgba(0,0,0,0.5);
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: 20px;
+  }
+
+  .battlefield {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin: 0 70px;
+    min-height: 100px;
+  }
+  .battlefield .pair {
+    position: relative;
+    width: calc(var(--card-w) + 14px);
+    height: calc(var(--card-h) + 14px);
+    margin: 0 2px;
+  }
+  .battlefield .pair .card { position: absolute; }
+  .battlefield .pair .card.attack { left: 0; top: 0; }
+  .battlefield .pair .card.defend { left: 14px; top: 14px; transform: rotate(8deg); }
+
+  .player-hand {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 0 4px;
+    min-height: 120px;
+    position: relative;
+  }
+  .player-hand .card {
+    margin-left: -22px;
+    cursor: pointer;
+    transition: transform 0.2s, margin 0.2s;
+  }
+  .player-hand .card:first-child { margin-left: 0; }
+  .player-hand .card:hover { transform: translateY(-12px); }
+  .player-hand .card.selected {
+    transform: translateY(-24px);
+    box-shadow: 0 0 0 3px var(--gold), 0 6px 16px rgba(0,0,0,0.5);
+  }
+  .player-hand .card.disabled { opacity: 0.5; cursor: not-allowed; }
+  .player-hand .card.disabled:hover { transform: none; }
+
+  /* ====== Инфо-панель ====== */
+  .info {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    z-index: 5;
+  }
+  .badge {
+    background: rgba(0,0,0,0.5);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .badge .icon { font-size: 14px; }
+  .trump-suit {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+  .trump-suit.red { color: #ff5252; }
+  .trump-suit.black { color: #eee; }
+
+  .status {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.6);
+    padding: 6px 16px;
+    border-radius: 16px;
+    font-size: 13px;
+    white-space: nowrap;
+    z-index: 10;
+    max-width: 90vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .status.show { opacity: 1; }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    padding: 8px;
+    background: rgba(0,0,0,0.3);
+    z-index: 10;
+    flex-shrink: 0;
+  }
+  .btn {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, filter 0.1s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: white;
+    background: #2563eb;
+  }
+  .btn:active:not(:disabled) { transform: translateY(2px); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.primary { background: #16a34a; }
+  .btn.danger { background: #dc2626; }
+  .btn .icon { font-size: 16px; }
+
+  /* ====== Модалка ====== */
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .modal.show { opacity: 1; pointer-events: auto; }
+  .modal-content {
+    background: linear-gradient(180deg, #1e3a5f, #0f2038);
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: center;
+    max-width: 320px;
+    width: 90%;
+    border: 2px solid var(--gold);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+  }
+  .modal-content h2 { font-size: 22px; margin-bottom: 12px; color: var(--gold); }
+  .modal-content p { font-size: 15px; margin-bottom: 20px; opacity: 0.9; }
+  .modal-content .btn { width: 100%; justify-content: center; margin-bottom: 8px; }
+
+  /* ====== Пьяница — поле ====== */
+  .war-arena {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px;
+    min-height: 0;
+  }
+  .war-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .war-slot {
+    width: 100px;
+    height: 145px;
+    border-radius: 10px;
+    border: 2px dashed rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    perspective: 800px;
+  }
+  .war-slot .card {
+    --card-w: 100px;
+    --card-h: 145px;
+    position: absolute;
+  }
+  .war-slot .card .face .center { font-size: 40px; }
+  .war-slot .card .face .tl .r { font-size: 20px; }
+  .war-slot .card .face .tl .s { font-size: 18px; }
+  .war-slot .card .face .br { font-size: 18px; }
+  .war-player-label {
+    font-size: 13px;
+    opacity: 0.8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .war-vs {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--gold);
+    text-shadow: 0 0 16px rgba(212,175,55,0.6);
+    letter-spacing: 2px;
+  }
+  .war-scores {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    font-size: 13px;
+    background: rgba(0,0,0,0.5);
+    padding: 6px 18px;
+    border-radius: 16px;
+    z-index: 5;
+  }
+
+  /* ====== Мобильная адаптация ====== */
+  @media (max-width: 480px) {
+    :root { --card-w: 62px; --card-h: 90px; }
+    .player-hand .card { margin-left: -28px; }
+    .battlefield { margin: 0 55px; }
+    .battlefield .pair { width: calc(var(--card-w) + 10px); height: calc(var(--card-h) + 10px); }
+    .battlefield .pair .card.defend { left: 10px; top: 10px; }
+    .deck-stack { width: 46px; height: 66px; }
+    .deck-stack .card { --card-w: 46px; --card-h: 66px; }
+    .trump-card { width: 46px; height: 66px; }
+    .trump-card .card { --card-w: 46px; --card-h: 66px; }
+    .deck-zone { left: 4px; }
+    .info { right: 4px; }
+    .btn { padding: 9px 14px; font-size: 13px; }
+    .menu h1 { font-size: 26px; }
+    .game-card { width: 130px; padding: 16px 10px; }
+    .game-card .gc-icon { font-size: 34px; }
+    .war-slot { width: 80px; height: 115px; }
+    .war-slot .card { --card-w: 80px; --card-h: 115px; }
+    .war-vs { font-size: 22px; }
+  }
+
+  @media (max-width: 360px) {
+    :root { --card-w: 56px; --card-h: 82px; }
+    .player-hand .card { margin-left: -32px; }
+  }
+
+  @media (hover: none) {
+    .player-hand .card:hover { transform: none; }
+    .player-hand .card.selected { transform: translateY(-18px); }
+  }
+</style>
+</head>
+<body>
+  <!-- SVG-спрайт иконок -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-sound-on" viewBox="0 0 24 24">
+    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+  </symbol>
+  <symbol id="i-sound-off" viewBox="0 0 24 24">
+    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+  </symbol>
+  <symbol id="i-restart" viewBox="0 0 24 24">
+    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+  </symbol>
+  <symbol id="i-pass" viewBox="0 0 24 24">
+    <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+  </symbol>
+  <symbol id="i-take" viewBox="0 0 24 24">
+    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+  </symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24">
+    <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+  </symbol>
+  <symbol id="i-user" viewBox="0 0 24 24">
+    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+  </symbol>
+  <symbol id="i-robot" viewBox="0 0 24 24">
+    <path d="M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zM7.5 11.5C7.5 10.67 8.17 10 9 10s1.5.67 1.5 1.5S9.83 13 9 13s-1.5-.67-1.5-1.5zM16 17H8v-2h8v2zm-1-4c-.83 0-1.5-.67-1.5-1.5S14.17 10 15 10s1.5.67 1.5 1.5S15.83 13 15 13z"/>
+  </symbol>
+  <symbol id="i-cards" viewBox="0 0 24 24">
+    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 11l-2.5-1.5L13 14l.5-3L11 9l3-.5L15 6l1 2.5 3 .5-2.5 2 .5 3z"/>
+  </symbol>
+  <symbol id="i-home" viewBox="0 0 24 24">
+    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+  </symbol>
+  <symbol id="i-swords" viewBox="0 0 24 24">
+    <path d="M6.92 5H5l9 9 1-.94V11l-8.08-8H4v1.92L6.92 5zm11.16 0L19 4l1 1-8 8-1-1 8-8zM4 20l4-4H6l-4 4v1h1l4-4v-2l-3 3zm16 0l-4-4h2l4 4v1h-1l-4-4v-2l3 3z"/>
+  </symbol>
+</svg>
+
+<!-- ====== МЕНЮ ====== -->
+<div class="menu" id="menu">
+  <h1>КАРТОЧНЫЕ ИГРЫ</h1>
+  <div class="sub">выбери игру и сложность</div>
+
+  <div class="menu-games">
+    <div class="game-card active" data-game="durak">
+      <svg class="icon gc-icon"><use href="#i-cards"/></svg>
+      <div class="gc-title">Дурак</div>
+      <div class="gc-desc">подкидной, 36 карт</div>
+    </div>
+    <div class="game-card" data-game="war">
+      <svg class="icon gc-icon"><use href="#i-swords"/></svg>
+      <div class="gc-title">Пьяница</div>
+      <div class="gc-desc">простая удача, 52 карты</div>
+    </div>
+  </div>
+
+  <div class="diff-label">Сложность бота</div>
+  <div class="difficulties">
+    <button class="diff-btn" data-diff="easy">Лёгкий</button>
+    <button class="diff-btn active" data-diff="normal">Средний</button>
+    <button class="diff-btn" data-diff="hard">Сложный</button>
+  </div>
+
+  <button class="start-btn" id="startBtn">
+    <svg class="icon"><use href="#i-play"/></svg>
+    Играть
+  </button>
+</div>
+
+<!-- ====== ИГРА "ДУРАК" ====== -->
+<div class="game-screen" id="screen-durak">
+  <div class="topbar">
+    <div class="title">
+      <svg class="icon" style="font-size:18px;color:#d4af37;"><use href="#i-cards"/></svg>
+      <strong>Дурак</strong>
+      <span style="opacity:0.5;font-size:11px;margin-left:6px;" id="durakDiffLabel"></span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-icon" id="soundBtn" title="Звук">
+        <svg class="icon"><use href="#i-sound-on" id="soundIcon"/></svg>
+      </button>
+      <button class="btn-icon" data-home title="В меню">
+        <svg class="icon"><use href="#i-home"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="table">
+    <div class="status" id="status"></div>
+
+    <div class="row bot-row">
+      <div id="botHand" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;"></div>
+    </div>
+
+    <div class="deck-zone">
+      <div class="deck-stack" id="deckStack"></div>
+      <div class="trump-card" id="trumpCard"></div>
+      <div class="deck-count" id="deckCount">0</div>
+    </div>
+
+    <div class="info">
+      <div class="badge"><svg class="icon"><use href="#i-robot"/></svg> <span id="botCount">0</span></div>
+      <div class="badge"><svg class="icon"><use href="#i-user"/></svg> <span id="playerCount">0</span></div>
+      <div class="trump-suit" id="trumpSuit">-</div>
+    </div>
+
+    <div class="battlefield" id="battlefield"></div>
+
+    <div class="row player-row">
+      <div class="player-hand" id="playerHand"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" id="playBtn" disabled>
+      <svg class="icon"><use href="#i-play"/></svg> <span id="playBtnText">Бить</span>
+    </button>
+    <button class="btn" id="passBtn" disabled>
+      <svg class="icon"><use href="#i-pass"/></svg> Бито
+    </button>
+    <button class="btn danger" id="takeBtn" disabled>
+      <svg class="icon"><use href="#i-take"/></svg> Взять
+    </button>
+  </div>
+</div>
+
+<!-- ====== ИГРА "ПЬЯНИЦА" ====== -->
+<div class="game-screen" id="screen-war">
+  <div class="topbar">
+    <div class="title">
+      <svg class="icon" style="font-size:18px;color:#d4af37;"><use href="#i-swords"/></svg>
+      <strong>Пьяница</strong>
+      <span style="opacity:0.5;font-size:11px;margin-left:6px;" id="warDiffLabel"></span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-icon" data-home title="В меню">
+        <svg class="icon"><use href="#i-home"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="war-scores">
+    <div><svg class="icon"><use href="#i-robot"/></svg> <span id="warBotScore">26</span></div>
+    <div><svg class="icon"><use href="#i-user"/></svg> <span id="warPlayerScore">26</span></div>
+  </div>
+
+  <div class="war-arena">
+    <div class="war-side">
+      <div class="war-player-label"><svg class="icon"><use href="#i-robot"/></svg> Бот</div>
+      <div class="war-slot" id="warBotSlot"></div>
+    </div>
+
+    <div class="war-vs">VS</div>
+
+    <div class="war-side">
+      <div class="war-slot" id="warPlayerSlot"></div>
+      <div class="war-player-label"><svg class="icon"><use href="#i-user"/></svg> Ты</div>
+    </div>
+  </div>
+
+  <div class="status" id="warStatus" style="bottom:70px;top:auto;"></div>
+
+  <div class="controls">
+    <button class="btn primary" id="warPlayBtn">
+      <svg class="icon"><use href="#i-play"/></svg> Ход
+    </button>
+  </div>
+</div>
+
+<!-- ====== МОДАЛКА ====== -->
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h2 id="modalTitle">Игра</h2>
+    <p id="modalText"></p>
+    <button class="btn primary" id="modalBtn">
+      <svg class="icon"><use href="#i-restart"/></svg> Играть снова
+    </button>
+    <button class="btn" id="modalHomeBtn">
+      <svg class="icon"><use href="#i-home"/></svg> В меню
+    </button>
+  </div>
+        </div>
+        <script>
+/* ============================================================
+   ОБЩЕЕ: звук, утилиты, меню
+   ============================================================ */
+const SUITS_36 = ['♠','♥','♦','♣'];
+const RANKS_36 = ['6','7','8','9','10','J','Q','K','A'];
+const RANKS_52 = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const isRed = s => s === '♥' || s === '♦';
+const rIdx = (r, arr) => arr.indexOf(r);
+
+const gameState = { soundOn: true, game: 'durak', difficulty: 'normal' };
+
+/* ---------- Звук ---------- */
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playTone(freq, dur = 0.08, type = 'sine', volume = 0.15) {
+  if (!gameState.soundOn) return;
+  ensureAudio();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + dur);
+}
+const sfx = {
+  deal:  () => playTone(600, 0.04, 'triangle', 0.08),
+  place: () => { playTone(300, 0.06, 'sine', 0.12); setTimeout(() => playTone(400, 0.04, 'sine', 0.08), 30); },
+  beat:  () => { playTone(500, 0.05, 'square', 0.1); setTimeout(() => playTone(700, 0.05, 'square', 0.08), 50); },
+  take:  () => { playTone(200, 0.15, 'sawtooth', 0.12); setTimeout(() => playTone(150, 0.15, 'sawtooth', 0.1), 100); },
+  win:   () => { [523,659,784,1046].forEach((f,i) => setTimeout(() => playTone(f, 0.15, 'triangle', 0.15), i*100)); },
+  lose:  () => { [400,350,300,200].forEach((f,i) => setTimeout(() => playTone(f, 0.2, 'sawtooth', 0.12), i*150)); },
+  error: () => playTone(150, 0.12, 'square', 0.1),
+};
+
+/* ---------- Утилиты карт ---------- */
+function createDeck(ranks) {
+  const d = [];
+  for (const s of SUITS_36) for (const r of ranks) d.push({ suit: s, rank: r });
+  return d;
+}
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function cardHTML(card, opts = {}) {
+  const red = isRed(card.suit) ? 'red' : '';
+  const flip = opts.faceDown ? 'flipped' : '';
+  const sel = opts.selected ? 'selected' : '';
+  const dis = opts.disabled ? 'disabled' : '';
+  const data = opts.index !== undefined ? `data-index="${opts.index}"` : '';
+  return `
+    <div class="card ${flip} ${sel} ${dis}" ${data}>
+      <div class="face ${red}">
+        <div class="tl"><span class="r">${card.rank}</span><span class="s">${card.suit}</span></div>
+        <div class="center">${card.suit}</div>
+        <div class="br"><span class="r">${card.rank}</span><span class="s">${card.suit}</span></div>
+      </div>
+      <div class="back"></div>
+    </div>`;
+}
+
+/* ---------- Меню ---------- */
+const menu = document.getElementById('menu');
+const screenDurak = document.getElementById('screen-durak');
+const screenWar = document.getElementById('screen-war');
+const modal = document.getElementById('modal');
+const diffLabels = { easy: 'Лёгкий', normal: 'Средний', hard: 'Сложный' };
+
+document.querySelectorAll('.game-card').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.game-card').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    gameState.game = el.dataset.game;
+  });
+});
+document.querySelectorAll('.diff-btn').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    gameState.difficulty = el.dataset.diff;
+  });
+});
+document.getElementById('startBtn').addEventListener('click', () => {
+  sfx.place();
+  menu.classList.add('hidden');
+  modal.classList.remove('show');
+  if (gameState.game === 'durak') {
+    screenDurak.classList.add('active');
+    screenWar.classList.remove('active');
+    initDurak();
+  } else {
+    screenWar.classList.add('active');
+    screenDurak.classList.remove('active');
+    initWar();
+  }
+});
+document.querySelectorAll('[data-home]').forEach(el => {
+  el.addEventListener('click', () => {
+    screenDurak.classList.remove('active');
+    screenWar.classList.remove('active');
+    modal.classList.remove('show');
+    menu.classList.remove('hidden');
+  });
+});
+document.getElementById('modalHomeBtn').addEventListener('click', () => {
+  modal.classList.remove('show');
+  screenDurak.classList.remove('active');
+  screenWar.classList.remove('active');
+  menu.classList.remove('hidden');
+});
+document.getElementById('soundBtn').addEventListener('click', () => {
+  gameState.soundOn = !gameState.soundOn;
+  document.getElementById('soundIcon').setAttribute('href', gameState.soundOn ? '#i-sound-on' : '#i-sound-off');
+  if (gameState.soundOn) sfx.place();
+});
+document.getElementById('modalBtn').addEventListener('click', () => {
+  modal.classList.remove('show');
+  if (gameState.game === 'durak') initDurak();
+  else initWar();
+});
+
+/* ============================================================
+   ИГРА 1: ДУРАК
+   ============================================================ */
+const D = {
+  deck: [], trump: null, trumpSuit: null,
+  player: [], bot: [], battlefield: [],
+  attacker: 'player', phase: 'idle',
+  selectedCard: null, busy: false,
+};
+
+function dCardBeat(def, atk) {
+  if (def.suit === atk.suit) return rIdx(def.rank, RANKS_36) > rIdx(atk.rank, RANKS_36);
+  if (def.suit === D.trumpSuit && atk.suit !== D.trumpSuit) return true;
+  return false;
+}
+function dCanAdd(card) {
+  const ranks = D.battlefield.flatMap(p => [p.attack?.rank, p.defend?.rank].filter(Boolean));
+  return ranks.includes(card.rank);
+}
+function dRenderHands() {
+  const ph = document.getElementById('playerHand');
+  ph.innerHTML = D.player.map((c, i) => cardHTML(c, {
+    index: i,
+    selected: D.selectedCard && D.selectedCard.index === i,
+    disabled: D.busy || D.phase === 'botTurn' || D.phase === 'ended',
+  })).join('');
+  document.getElementById('botHand').innerHTML =
+    D.bot.map(() => cardHTML({suit:'♠', rank:'6'}, {faceDown:true})).join('');
+  document.getElementById('playerCount').textContent = D.player.length;
+  document.getElementById('botCount').textContent = D.bot.length;
+}
+function dRenderField() {
+  document.getElementById('battlefield').innerHTML = D.battlefield.map(pair => `
+    <div class="pair">
+      ${pair.attack ? cardHTML(pair.attack).replace('class="card ', 'class="card attack ') : ''}
+      ${pair.defend ? cardHTML(pair.defend).replace('class="card ', 'class="card defend ') : ''}
+    </div>`).join('');
+}
+function dRenderDeck() {
+  const stack = document.getElementById('deckStack');
+  stack.innerHTML = Array(Math.min(3, D.deck.length)).fill(0)
+    .map(() => cardHTML({suit:'♠',rank:'6'},{faceDown:true})).join('');
+  document.getElementById('trumpCard').innerHTML = D.trump ? cardHTML(D.trump) : '';
+  document.getElementById('deckCount').textContent = D.deck.length;
+  const ts = document.getElementById('trumpSuit');
+  if (D.trumpSuit) {
+    ts.textContent = D.trumpSuit;
+    ts.className = 'trump-suit ' + (isRed(D.trumpSuit) ? 'red' : 'black');
+  }
+}
+function dRenderAll() { dRenderHands(); dRenderField(); dRenderDeck(); dUpdateBtns(); }
+function dUpdateBtns() {
+  const p = document.getElementById('playBtn');
+  const pa = document.getElementById('passBtn');
+  const t = document.getElementById('takeBtn');
+  const txt = document.getElementById('playBtnText');
+  p.disabled = pa.disabled = t.disabled = true;
+  if (D.busy || D.phase === 'ended' || D.phase === 'botTurn') return;
+  if (D.phase === 'playerAttack') {
+    txt.textContent = D.battlefield.length === 0 ? 'Атаковать' : 'Подкинуть';
+    p.disabled = !D.selectedCard;
+    if (D.battlefield.length > 0 && D.battlefield.every(x => x.defend)) pa.disabled = false;
+  } else if (D.phase === 'playerDefend') {
+    txt.textContent = 'Бить';
+    p.disabled = !D.selectedCard;
+    t.disabled = false;
+  }
+}
+function dStatus(text, dur = 2000) {
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), dur);
+}
+function dEndGame(who) {
+  D.phase = 'ended'; D.busy = false;
+  document.getElementById('modalTitle').textContent =
+    who === 'player' ? 'Ты победил!' : who === 'bot' ? 'Ты проиграл' : 'Ничья';
+  document.getElementById('modalText').textContent =
+    who === 'player' ? 'Бот остался дураком!' :
+    who === 'bot' ? 'Ты остался дураком.' : 'Оба без карт.';
+  if (who === 'player') sfx.win(); else sfx.lose();
+  modal.classList.add('show');
+  dRenderAll();
+}
+function dCheckWin() {
+  if (D.phase === 'ended') return true;
+  const empty = D.deck.length === 0;
+  if (empty && D.player.length === 0 && D.bot.length === 0) { dEndGame('draw'); return true; }
+  if (empty && D.player.length === 0) { dEndGame('player'); return true; }
+  if (empty && D.bot.length === 0) { dEndGame('bot'); return true; }
+  return false;
+}
+function dDraw() {
+  const np = 6 - D.player.length, nb = 6 - D.bot.length;
+  for (let i = 0; i < np; i++) { if (!D.deck.length) break; D.player.push(D.deck.shift()); setTimeout(sfx.deal, i*50); }
+  for (let i = 0; i < nb; i++) { if (!D.deck.length) break; D.bot.push(D.deck.shift()); setTimeout(sfx.deal, (np+i)*50); }
+}
+function initDurak() {
+  const deck = shuffle(createDeck(RANKS_36));
+  D.player = deck.splice(0,6); D.bot = deck.splice(0,6); D.deck = deck;
+  D.trump = D.deck[D.deck.length-1]; D.trumpSuit = D.trump.suit;
+  D.battlefield = []; D.selectedCard = null; D.busy = false; D.phase = 'idle';
+  document.getElementById('durakDiffLabel').textContent = diffLabels[gameState.difficulty];
+
+  const pt = D.player.filter(c => c.suit === D.trumpSuit)
+    .sort((a,b)=>rIdx(a.rank,RANKS_36)-rIdx(b.rank,RANKS_36))[0];
+  const bt = D.bot.filter(c => c.suit === D.trumpSuit)
+    .sort((a,b)=>rIdx(a.rank,RANKS_36)-rIdx(b.rank,RANKS_36))[0];
+  let playerFirst = true;
+  if (pt && bt) playerFirst = rIdx(pt.rank, RANKS_36) < rIdx(bt.rank, RANKS_36);
+  else if (!pt && bt) playerFirst = false;
+
+  dRenderAll();
+  if (playerFirst) {
+    D.phase = 'playerAttack'; D.attacker = 'player';
+    dStatus('Ты ходишь первым'); dUpdateBtns();
+  } else {
+    D.attacker = 'bot'; D.phase = 'botTurn';
+    dStatus('Бот ходит первым');
+    setTimeout(dBotAttack, 800);
+  }
+  document.getElementById('modal').classList.remove('show');
+}
+function dOnCardClick(e) {
+  const el = e.target.closest('.card');
+  if (!el || el.classList.contains('disabled')) return;
+  if (D.busy || D.phase === 'ended' || D.phase === 'botTurn') return;
+  const idx = +el.dataset.index;
+  if (D.phase === 'playerAttack') {
+    if (D.battlefield.length > 0 && !dCanAdd(D.player[idx])) {
+      sfx.error(); dStatus('Можно подкидывать только того же ранга'); return;
+    }
+    D.selectedCard = D.selectedCard && D.selectedCard.index === idx ? null : { index: idx };
+    dRenderHands(); dUpdateBtns(); sfx.place();
+  } else if (D.phase === 'playerDefend') {
+    const pair = D.battlefield.find(p => !p.defend);
+    if (!pair) return;
+    if (!dCardBeat(D.player[idx], pair.attack)) {
+      sfx.error(); dStatus('Эта карта не бьёт'); return;
+    }
+    D.selectedCard = D.selectedCard && D.selectedCard.index === idx ? null : { index: idx };
+    dRenderHands(); dUpdateBtns(); sfx.place();
+  }
+}
+function dPlayerPlay() {
+  if (!D.selectedCard || D.busy) return;
+  const idx = D.selectedCard.index;
+  const card = D.player[idx];
+  if (D.phase === 'playerAttack') {
+    D.player.splice(idx,1);
+    D.battlefield.push({ attack: card, defend: null });
+    D.selectedCard = null; sfx.beat(); dRenderAll();
+    D.busy = true; D.phase = 'botTurn'; dUpdateBtns();
+    setTimeout(dBotDefend, 700);
+  } else if (D.phase === 'playerDefend') {
+    const pair = D.battlefield.find(p => !p.defend);
+    if (!pair) return;
+    D.player.splice(idx,1);
+    pair.defend = card;
+    D.selectedCard = null; sfx.beat(); dRenderAll();
+    D.busy = true;
+    setTimeout(dBotMaybeAdd, 600);
+  }
+}
+function dPlayerPass() {
+  if (D.busy || D.phase !== 'playerAttack') return;
+  if (!D.battlefield.every(p => p.defend)) return;
+  D.battlefield = []; D.attacker = 'bot'; sfx.take(); dRenderField();
+  setTimeout(() => {
+    dDraw(); dRenderAll();
+    if (dCheckWin()) return;
+    D.phase = 'botTurn'; D.busy = true; dUpdateBtns();
+    setTimeout(dBotAttack, 700);
+  }, 400);
+}
+function dPlayerTake() {
+  if (D.busy || D.phase !== 'playerDefend') return;
+  sfx.take();
+  const taken = [];
+  D.battlefield.forEach(p => {
+    if (p.attack) taken.push(p.attack);
+    if (p.defend) taken.push(p.defend);
+  });
+  D.player.push(...taken); D.battlefield = []; dRenderAll();
+  D.busy = true; D.phase = 'botTurn'; dUpdateBtns();
+  setTimeout(() => {
+    dDraw(); dRenderAll();
+    if (dCheckWin()) return;
+    D.attacker = 'bot'; D.busy = true;
+    setTimeout(dBotAttack, 700);
+  }, 500);
+}
+          function dBotAttack() {
+  if (D.phase === 'ended' || !D.bot.length) { dCheckWin(); return; }
+  let cardIdx = -1;
+  if (D.battlefield.length === 0) {
+    const nt = D.bot.map((c,i)=>({c,i}))
+      .filter(x=>x.c.suit!==D.trumpSuit)
+      .sort((a,b)=>rIdx(a.c.rank,RANKS_36)-rIdx(b.c.rank,RANKS_36));
+    if (nt.length) cardIdx = nt[0].i;
+    else {
+      const tr = D.bot.map((c,i)=>({c,i}))
+        .sort((a,b)=>rIdx(a.c.rank,RANKS_36)-rIdx(b.c.rank,RANKS_36));
+      cardIdx = tr[0].i;
+    }
+  } else {
+    const possible = D.bot.map((c,i)=>({c,i})).filter(x => dCanAdd(x.c));
+    if (possible.length && D.battlefield.every(p => p.defend)) cardIdx = possible[0].i;
+    else { dBotEndTurn(); return; }
+  }
+  if (cardIdx < 0) { dBotEndTurn(); return; }
+  const card = D.bot.splice(cardIdx,1)[0];
+  D.battlefield.push({ attack: card, defend: null });
+  sfx.beat(); dRenderAll();
+  D.busy = false; D.phase = 'playerDefend'; dUpdateBtns();
+}
+function dBotDefend() {
+  if (D.phase === 'ended') return;
+  const pair = D.battlefield.find(p => !p.defend);
+  if (!pair) { dBotEndTurn(); return; }
+  const cands = D.bot.map((c,i)=>({c,i}))
+    .filter(x => dCardBeat(x.c, pair.attack))
+    .sort((a,b) => {
+      const aT = a.c.suit === D.trumpSuit ? 1 : 0;
+      const bT = b.c.suit === D.trumpSuit ? 1 : 0;
+      if (aT !== bT) return aT - bT;
+      return rIdx(a.c.rank, RANKS_36) - rIdx(b.c.rank, RANKS_36);
+    });
+  const probDefend = gameState.difficulty === 'easy' ? 0.7
+                   : gameState.difficulty === 'hard' ? 0.98 : 0.9;
+  if (cands.length && Math.random() < probDefend) {
+    const { i } = cands[0];
+    const card = D.bot.splice(i,1)[0];
+    pair.defend = card; sfx.beat(); dRenderAll();
+    setTimeout(dBotMaybeAdd, 500);
+  } else {
+    sfx.take();
+    const taken = [];
+    D.battlefield.forEach(p => {
+      if (p.attack) taken.push(p.attack);
+      if (p.defend) taken.push(p.defend);
+    });
+    D.bot.push(...taken); D.battlefield = []; dRenderAll();
+    setTimeout(() => {
+      dDraw(); dRenderAll();
+      if (dCheckWin()) return;
+      D.attacker = 'player'; D.phase = 'playerAttack';
+      D.busy = false; dUpdateBtns();
+    }, 500);
+  }
+}
+function dBotMaybeAdd() {
+  if (D.phase === 'ended') return;
+  const possible = D.bot.map((c,i)=>({c,i})).filter(x => dCanAdd(x.c));
+  const addProb = gameState.difficulty === 'easy' ? 0.5
+                : gameState.difficulty === 'hard' ? 1 : 0.8;
+  if (possible.length && D.battlefield.every(p => p.defend) && Math.random() < addProb) {
+    const { i } = possible[0];
+    const card = D.bot.splice(i,1)[0];
+    D.battlefield.push({ attack: card, defend: null });
+    sfx.beat(); dRenderAll();
+    D.busy = false; D.phase = 'playerDefend'; dUpdateBtns();
+  } else {
+    dBotEndTurn();
+  }
+}
+function dBotEndTurn() {
+  D.battlefield = []; dRenderField(); sfx.take();
+  setTimeout(() => {
+    dDraw(); dRenderAll();
+    if (dCheckWin()) return;
+    D.attacker = 'player'; D.phase = 'playerAttack';
+    D.busy = false; dUpdateBtns();
+  }, 400);
+}
+document.getElementById('playBtn').addEventListener('click', dPlayerPlay);
+document.getElementById('passBtn').addEventListener('click', dPlayerPass);
+document.getElementById('takeBtn').addEventListener('click', dPlayerTake);
+document.getElementById('playerHand').addEventListener('click', dOnCardClick);
+
+/* ============================================================
+   ИГРА 2: ПЬЯНИЦА
+   ============================================================ */
+const W = { playerDeck: [], botDeck: [], busy: false };
+const W_ranks = RANKS_52;
+
+function initWar() {
+  const deck = shuffle(createDeck(RANKS_52));
+  W.playerDeck = deck.slice(0,26);
+  W.botDeck = deck.slice(26);
+  W.busy = false;
+  document.getElementById('warPlayerSlot').innerHTML = '';
+  document.getElementById('warBotSlot').innerHTML = '';
+  document.getElementById('warDiffLabel').textContent = diffLabels[gameState.difficulty];
+  document.getElementById('warPlayBtn').disabled = false;
+  warUpdateScores();
+  warStatus('Нажми "Ход" чтобы начать', 2500);
+  document.getElementById('modal').classList.remove('show');
+}
+function warUpdateScores() {
+  document.getElementById('warPlayerScore').textContent = W.playerDeck.length;
+  document.getElementById('warBotScore').textContent = W.botDeck.length;
+}
+function warStatus(text, dur = 2000) {
+  const el = document.getElementById('warStatus');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), dur);
+}
+function warEnd(who) {
+  W.busy = true;
+  document.getElementById('warPlayBtn').disabled = true;
+  document.getElementById('modalTitle').textContent =
+    who === 'player' ? 'Ты победил!' : who === 'bot' ? 'Ты проиграл' : 'Ничья';
+  document.getElementById('modalText').textContent =
+    who === 'player' ? 'Ты собрал все карты!' :
+    who === 'bot' ? 'Бот собрал все карты.' : 'Ничья';
+  if (who === 'player') sfx.win(); else sfx.lose();
+  document.getElementById('modal').classList.add('show');
+}
+function warPlay() {
+  if (W.busy) return;
+  if (!W.playerDeck.length || !W.botDeck.length) return;
+  W.busy = true;
+  document.getElementById('warPlayBtn').disabled = true;
+
+  const p = W.playerDeck.shift();
+  const b = W.botDeck.shift();
+
+  document.getElementById('warBotSlot').innerHTML = cardHTML(b, { faceDown: true });
+  document.getElementById('warPlayerSlot').innerHTML = cardHTML(p);
+
+  setTimeout(() => {
+    document.getElementById('warBotSlot').innerHTML = cardHTML(b);
+    sfx.beat();
+    setTimeout(() => warResolve(p, b), 300);
+  }, 400);
+}
+function warResolve(p, b) {
+  const pv = rIdx(p.rank, W_ranks), bv = rIdx(b.rank, W_ranks);
+  if (pv > bv) {
+    W.playerDeck.push(p, b);
+    warStatus('Ты выиграл раунд');
+    sfx.beat();
+  } else if (pv < bv) {
+    W.botDeck.push(b, p);
+    warStatus('Бот выиграл раунд');
+  } else {
+    warStatus('Спор!');
+    warTie([p, b], 0);
+    return;
+  }
+  warUpdateScores();
+  warFinish();
+}
+function warTie(bank, depth) {
+  if (depth > 30) { warFinish(); return; }
+  if (!W.playerDeck.length || !W.botDeck.length) {
+    if (W.playerDeck.length) W.playerDeck.push(...bank);
+    else if (W.botDeck.length) W.botDeck.push(...bank);
+    warUpdateScores(); warFinish(); return;
+  }
+  const p = W.playerDeck.shift();
+  const b = W.botDeck.shift();
+  bank.push(p, b);
+  document.getElementById('warPlayerSlot').innerHTML = cardHTML(p);
+  document.getElementById('warBotSlot').innerHTML = cardHTML(b, { faceDown: true });
+
+  setTimeout(() => {
+    document.getElementById('warBotSlot').innerHTML = cardHTML(b);
+    sfx.beat();
+    const pv = rIdx(p.rank, W_ranks), bv = rIdx(b.rank, W_ranks);
+    if (pv > bv) {
+      W.playerDeck.push(...bank);
+      warStatus(`Ты забрал банк (${bank.length} карт)`);
+      warUpdateScores(); warFinish();
+    } else if (pv < bv) {
+      W.botDeck.push(...bank);
+      warStatus(`Бот забрал банк (${bank.length} карт)`);
+      warUpdateScores(); warFinish();
+    } else {
+      warTie(bank, depth + 1);
+    }
+  }, 500);
+}
+function warFinish() {
+  warUpdateScores();
+  if (!W.playerDeck.length || !W.botDeck.length) {
+    if (!W.playerDeck.length && !W.botDeck.length) warEnd('draw');
+    else if (!W.playerDeck.length) warEnd('bot');
+    else warEnd('player');
+    return;
+  }
+  W.busy = false;
+  document.getElementById('warPlayBtn').disabled = false;
+}
+document.getElementById('warPlayBtn').addEventListener('click', warPlay);
+</script>
+</body>
+</html>
